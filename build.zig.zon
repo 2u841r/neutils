@@ -1,0 +1,10 @@
+.{
+    .name = .neutils,
+    .version = "0.1.0",
+    .fingerprint = 0x8cf1dad9242eeacb,
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
