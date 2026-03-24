@@ -39,8 +39,8 @@ fn getComponentString(component: ?std.Uri.Component) ?[]const u8 {
     };
 }
 
-fn printHelp(file: File) !void {
-    try file.writeAll(
+fn printHelp(writer: *Writer) !void {
+    try writer.writeAll(
         \\Usage: urlparse [OPTIONS] <URL>
         \\
         \\Parse a URL and display its components.
@@ -60,12 +60,14 @@ fn printHelp(file: File) !void {
         \\  urlparse --field host "https://example.com/path"
         \\
     );
+    try writer.flush();
 }
 
-fn printVersion(file: File) !void {
-    try file.writeAll("urlparse ");
-    try file.writeAll(version);
-    try file.writeAll("\n");
+fn printVersion(writer: *Writer) !void {
+    try writer.writeAll("urlparse ");
+    try writer.writeAll(version);
+    try writer.writeAll("\n");
+    try writer.flush();
 }
 
 pub fn main() !void {
@@ -91,10 +93,10 @@ pub fn main() !void {
 
     while (args.next()) |arg| {
         if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
-            try printHelp(stdout);
+            try printHelp(stdout_writer_interface);
             return;
         } else if (std.mem.eql(u8, arg, "--version") or std.mem.eql(u8, arg, "-v")) {
-            try printVersion(stdout);
+            try printVersion(stdout_writer_interface);
             return;
         } else if (std.mem.eql(u8, arg, "--json") or std.mem.eql(u8, arg, "-j")) {
             output_format = .json;
