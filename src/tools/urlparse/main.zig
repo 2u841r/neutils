@@ -123,6 +123,14 @@ pub fn main() !void {
             try stderr_writer_interface.flush();
             std.process.exit(1);
         } else {
+            if (url) |_| {
+                try stderr_writer_interface.writeAll("error: multiple URLs provided\n");
+                try stderr_writer_interface.writeAll("usage: urlparse [OPTIONS] <URL>\n");
+                try stderr_writer_interface.writeAll("try 'urlparse --help' for more information\n");
+                try stderr_writer_interface.flush();
+                std.process.exit(1);
+            }
+
             url = arg;
         }
     }
