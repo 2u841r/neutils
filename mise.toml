@@ -2,3 +2,6 @@
 zig = "0.15.2"
 usage = "latest"
 "forgejo:tensorush/zq" = { version = "0.8.0", bin = "zq" }
+
+[tasks.demo]
+run = "vhs demo/urlparse.tape"
