@@ -6,6 +6,10 @@
             .url = "git+https://github.com/JacobCrabill/zigdown.git#3998c71aa395e5c032530cfff0bb6edd30a24e63",
             .hash = "zigdown-1.2.0-M06JTzTWFQBiZRYVMROtmuXp3ZWoB8XoFV-iGXaEzp6G",
         },
+        .kewpie = .{
+            .url = "git+https://github.com/weskoerber/kewpie#001fe8addccbf3ce171b31c6281cf82f2c487356",
+            .hash = "kewpie-0.1.0-PG0ir0IzAABsQr2dPBazNu4Okyt7MX2b2cjbVGP76NkH",
+        },
     },
     .fingerprint = 0x8cf1dad9242eeacb,
     .paths = .{

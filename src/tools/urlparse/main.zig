@@ -174,7 +174,7 @@ pub fn main() !void {
         }
     } else switch (output_format) {
         .json => try writeJson(stdout_writer_interface, uri),
-        .markdown => try writeMarkdown(stdout_writer_interface, uri),
+        .markdown => try writeMarkdown(std.heap.smp_allocator, stdout_writer_interface, uri),
         .terminal => try writeTerminal(std.heap.smp_allocator, stdout_writer_interface, uri),
     }
 
@@ -185,7 +185,7 @@ fn writeTerminal(allocator: std.mem.Allocator, writer: *Writer, uri: std.Uri) !v
     var markdown_writer: Writer.Allocating = .init(allocator);
     defer markdown_writer.deinit();
 
-    try writeMarkdown(&markdown_writer.writer, uri);
+    try writeMarkdown(allocator, &markdown_writer.writer, uri);
     const markdown = markdown_writer.written();
 
     var parser: zigdown.Parser = .init(allocator, .{});
@@ -198,7 +198,17 @@ fn writeTerminal(allocator: std.mem.Allocator, writer: *Writer, uri: std.Uri) !v
     try renderer.renderBlock(parser.document);
 }
 
-fn writeMarkdown(writer: *Writer, uri: std.Uri) !void {
+fn writeMarkdown(allocator: std.mem.Allocator, writer: *Writer, uri: std.Uri) !void {
+    try writer.writeAll("# URL\n\n");
+
+    try writer.writeAll("[");
+    try uri.writeToStream(writer, .all);
+    try writer.writeAll("](");
+    try uri.writeToStream(writer, .all);
+    try writer.writeAll(")\n\n");
+
+    try writer.writeAll("## Components\n\n");
+
     try writer.writeAll("|Component|Value|\n");
     try writer.writeAll("|-|-|\n");
 
@@ -230,6 +240,21 @@ fn writeMarkdown(writer: *Writer, uri: std.Uri) !void {
 
     if (getComponentString(uri.fragment)) |f| {
         try writer.print("|fragment|{s}|\n", .{f});
+    }
+
+    if (uri.query) |_| {
+        var query_params = try kewpie.parse(allocator, uri);
+        defer query_params.deinit();
+
+        try writer.writeAll("## Query Parameters\n\n");
+
+        try writer.writeAll("|Key|Value|\n");
+        try writer.writeAll("|-|-|\n");
+
+        var iter = query_params.iterator();
+        while (iter.next()) |entry| {
+            try writer.print("|{s}|{s}|\n", .{ entry.key_ptr.*, entry.value_ptr.* });
+        }
     }
 }
 
@@ -287,3 +312,4 @@ const File = std.fs.File;
 const Writer = std.Io.Writer;
 
 const zigdown = @import("zigdown");
+const kewpie = @import("kewpie");
