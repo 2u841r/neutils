@@ -1,4 +1,5 @@
-const version = "0.1.0";
+const build_options = @import("build_options");
+const version = build_options.version;
 
 const OutputFormat = enum {
     json,

@@ -1,8 +1,12 @@
 const std = @import("std");
+const BuildZigZon = @import("build.zig.zon");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    const build_options = b.addOptions();
+    build_options.addOption([]const u8, "version", getVersion(optimize));
 
     var tools_dir = std.fs.cwd().openDir("src/tools", .{ .iterate = true }) catch {
         return;
@@ -27,6 +31,7 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
         });
 
+        mod.addOptions("build_options", build_options);
         mod.addImport("zigdown", b.dependency("zigdown", .{}).module("zigdown"));
         mod.addImport("kewpie", b.dependency("kewpie", .{}).module("kewpie"));
 
@@ -40,4 +45,12 @@ pub fn build(b: *std.Build) !void {
         const build_step = b.step(tool_name, b.fmt("Build {s}", .{tool_name}));
         build_step.dependOn(&b.addInstallArtifact(exe, .{}).step);
     }
+}
+
+fn getVersion(optimize: std.builtin.OptimizeMode) []const u8 {
+    if (optimize == .Debug) {
+        const semver = comptime std.SemanticVersion.parse(BuildZigZon.version) catch @compileError("Could not parse version.");
+        return std.fmt.comptimePrint("{d}.{d}.{d}-dev", .{ semver.major, semver.minor, semver.patch + 1 });
+    }
+    return BuildZigZon.version;
 }
