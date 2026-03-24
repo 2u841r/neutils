@@ -85,7 +85,8 @@ pub fn main() !void {
     var stderr_writer = stderr.writer(&stderr_buf);
     var stderr_writer_interface = &stderr_writer.interface;
 
-    var args = std.process.args();
+    var args = try std.process.argsWithAllocator(gpa);
+    defer args.deinit();
     _ = args.skip(); // Skip program name
 
     var output_format: OutputFormat = if (stdout.isTty()) .terminal else .markdown;
