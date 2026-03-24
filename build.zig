@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -9,14 +9,17 @@ pub fn build(b: *std.Build) void {
     };
     defer tools_dir.close();
 
-    var iter = tools_dir.iterate();
-    while (iter.next() catch null) |entry| {
-        if (entry.kind != .file) continue;
-        const name = entry.name;
-        if (!std.mem.endsWith(u8, name, ".zig")) continue;
+    var iter = try tools_dir.walk(b.allocator);
+    defer iter.deinit();
 
-        const tool_name = name[0 .. name.len - 4];
-        const path = b.fmt("src/tools/{s}", .{name});
+    while (try iter.next()) |entry| {
+        if (entry.kind != .file) continue;
+        if (!std.mem.eql(u8, entry.basename, "main.zig")) continue;
+        if (std.mem.count(u8, entry.path, &.{std.fs.path.sep}) != 1) continue;
+
+        const tool_name = std.fs.path.dirname(entry.path) orelse continue;
+
+        const path = b.fmt("src/tools/{s}/{s}", .{ tool_name, entry.basename });
 
         const exe = b.addExecutable(.{
             .name = tool_name,
