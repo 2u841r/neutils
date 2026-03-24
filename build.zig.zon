@@ -3,8 +3,8 @@
     .version = "0.1.0",
     .dependencies = .{
         .zigdown = .{
-            .url = "git+https://github.com/JacobCrabill/zigdown.git#3998c71aa395e5c032530cfff0bb6edd30a24e63",
-            .hash = "zigdown-1.2.0-M06JTzTWFQBiZRYVMROtmuXp3ZWoB8XoFV-iGXaEzp6G",
+            .url = "https://github.com/JacobCrabill/zigdown/archive/refs/tags/v1.2.0.tar.gz",
+            .hash = "zigdown-1.2.0-M06JT7-lFQCrQRNGBipFjSt-qAvFSLgy8-f-D4VFAeOi",
         },
         .kewpie = .{
             .url = "git+https://github.com/weskoerber/kewpie#001fe8addccbf3ce171b31c6281cf82f2c487356",
