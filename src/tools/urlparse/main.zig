@@ -163,7 +163,7 @@ pub fn main() !void {
 
         if (field == .port) {
             if (port) |p| {
-                try stdout_writer_interface.writeInt(u16, p, .little);
+                try stdout_writer_interface.print("{d}", .{p});
                 try stdout_writer_interface.writeAll("\n");
             }
         } else {
