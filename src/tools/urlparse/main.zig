@@ -251,10 +251,6 @@ fn writeMarkdown(allocator: std.mem.Allocator, writer: *Writer, uri: std.Uri) !v
         try writer.print("|query|{s}|\n", .{q});
     }
 
-    if (getComponentString(uri.fragment)) |f| {
-        try writer.print("|fragment|{s}|\n", .{f});
-    }
-
     if (uri.query) |_| {
         var query_params = try kewpie.parse(allocator, uri);
         defer query_params.deinit();
@@ -268,6 +264,10 @@ fn writeMarkdown(allocator: std.mem.Allocator, writer: *Writer, uri: std.Uri) !v
         while (iter.next()) |entry| {
             try writer.print("|{s}|{s}|\n", .{ entry.key_ptr.*, entry.value_ptr.* });
         }
+    }
+
+    if (getComponentString(uri.fragment)) |f| {
+        try writer.print("|fragment|{s}|\n", .{f});
     }
 }
 
