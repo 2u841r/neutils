@@ -5,6 +5,7 @@ const OutputFormat = enum {
     json,
     markdown,
     terminal,
+    field,
 };
 
 const Field = enum {
@@ -18,17 +19,7 @@ const Field = enum {
     fragment,
 
     fn fromString(s: []const u8) ?Field {
-        const map = std.StaticStringMap(Field).initComptime(.{
-            .{ "scheme", .scheme },
-            .{ "user", .user },
-            .{ "password", .password },
-            .{ "host", .host },
-            .{ "port", .port },
-            .{ "path", .path },
-            .{ "query", .query },
-            .{ "fragment", .fragment },
-        });
-        return map.get(s);
+        return std.meta.stringToEnum(Field, s);
     }
 };
 
@@ -90,7 +81,7 @@ pub fn main() !void {
     _ = args.skip(); // Skip program name
 
     var output_format: OutputFormat = if (stdout.isTty()) .terminal else .markdown;
-    var field_filter: ?Field = null;
+    var field: ?Field = null;
     var url: ?[]const u8 = null;
 
     while (args.next()) |arg| {
@@ -105,12 +96,15 @@ pub fn main() !void {
         } else if (std.mem.eql(u8, arg, "--markdown") or std.mem.eql(u8, arg, "-m")) {
             output_format = .markdown;
         } else if (std.mem.eql(u8, arg, "--field") or std.mem.eql(u8, arg, "-f")) {
+            output_format = .field;
+
             const field_name = args.next() orelse {
                 try stderr_writer_interface.writeAll("error: --field requires a field name argument\n");
                 try stderr_writer_interface.flush();
                 std.process.exit(1);
             };
-            field_filter = Field.fromString(field_name) orelse {
+
+            field = Field.fromString(field_name) orelse {
                 try stderr_writer_interface.writeAll("error: unknown field '");
                 try stderr_writer_interface.writeAll(field_name);
                 try stderr_writer_interface.writeAll("'\n");
@@ -153,44 +147,23 @@ pub fn main() !void {
         std.process.exit(1);
     };
 
-    // Extract component values
-    const scheme = uri.scheme;
-    const user = getComponentString(uri.user);
-    const password = getComponentString(uri.password);
-    const host = getComponentString(uri.host);
-    const port = uri.port;
-    const path = getComponentString(uri.path);
-    const query = getComponentString(uri.query);
-    const fragment = getComponentString(uri.fragment);
-
-    // Handle single field extraction
-    if (field_filter) |field| {
-        const value: ?[]const u8 = switch (field) {
-            .scheme => scheme,
-            .user => user,
-            .password => password,
-            .host => host,
-            .port => null, // Special case: port is u16
-            .path => path,
-            .query => query,
-            .fragment => fragment,
-        };
-
-        if (field == .port) {
-            if (port) |p| {
-                try stdout_writer_interface.print("{d}", .{p});
-                try stdout_writer_interface.writeAll("\n");
-            }
-        } else {
-            if (value) |v| {
-                try stdout_writer_interface.writeAll(v);
-                try stdout_writer_interface.writeAll("\n");
-            }
-        }
-    } else switch (output_format) {
+    switch (output_format) {
         .json => try writeJson(gpa, stdout_writer_interface, uri),
         .markdown => try writeMarkdown(gpa, stdout_writer_interface, uri),
         .terminal => try writeTerminal(gpa, stdout_writer_interface, uri),
+        .field => {
+            switch (field.?) {
+                .scheme => try stdout_writer_interface.print("{s}", .{uri.scheme}),
+                .port => if (uri.port) |p| {
+                    try stdout_writer_interface.print("{d}", .{p});
+                },
+                inline else => |f| if (getComponentString(@field(uri, std.enums.tagName(Field, f).?))) |v| {
+                    try stdout_writer_interface.print("{s}", .{v});
+                },
+            }
+
+            try stdout_writer_interface.writeAll("\n");
+        },
     }
 
     try stdout_writer_interface.flush();
