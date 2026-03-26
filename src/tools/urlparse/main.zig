@@ -63,7 +63,9 @@ fn printVersion(writer: *Writer) !void {
 }
 
 pub fn main() !void {
-    const gpa = std.heap.smp_allocator;
+    var arena: std.heap.ArenaAllocator = .init(std.heap.page_allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
 
     const stdout = File.stdout();
     const stderr = File.stderr();
