@@ -65,6 +65,20 @@ jobs:
             tar -czf "artifacts/${STAGING_DIR}.tar.gz" "${STAGING_DIR}"
           fi
 
+          # Per-tool archives
+          for bin in zig-out/bin/*; do
+            TOOL_NAME=$(basename "${bin}" .exe)
+            TOOL_DIR="${TOOL_NAME}-${VERSION}-${{ matrix.target.os }}-${{ matrix.target.arch }}"
+            mkdir -p "${TOOL_DIR}"
+            cp "${bin}" "${TOOL_DIR}/"
+            cp README.md LICENSE "${TOOL_DIR}/"
+            if [[ "${{ matrix.target.os }}" == "windows" ]]; then
+              zip -r "artifacts/${TOOL_DIR}.zip" "${TOOL_DIR}"
+            else
+              tar -czf "artifacts/${TOOL_DIR}.tar.gz" "${TOOL_DIR}"
+            fi
+          done
+
           ls -la artifacts/
 
       - name: Upload artifact
