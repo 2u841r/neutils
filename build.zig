@@ -54,6 +54,14 @@ pub fn build(b: *std.Build) !void {
 
         const run_step = b.step(b.fmt("run-{s}", .{tool_name}), b.fmt("Run {s}", .{tool_name}));
         run_step.dependOn(&run_cmd.step);
+
+        const unit_tests = b.addTest(.{
+            .root_module = mod,
+        });
+
+        const test_run = b.addRunArtifact(unit_tests);
+        const test_step = b.step(b.fmt("test-{s}", .{tool_name}), b.fmt("Test {s}", .{tool_name}));
+        test_step.dependOn(&test_run.step);
     }
 }
 
