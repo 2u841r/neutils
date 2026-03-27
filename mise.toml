@@ -3,5 +3,13 @@ zig = "0.15.2"
 usage = "latest"
 "forgejo:tensorush/zq" = { version = "0.8.0", bin = "zq" }
 
-[tasks.demo]
-run = "vhs demo/urlparse.tape"
+[tasks.demo-urlparse]
+dir = "src/tools/urlparse/demo"
+run = "vhs demo.tape"
+
+[tasks.demo-mbox-diff]
+dir = "src/tools/mbox-diff/demo"
+run = "vhs demo.tape"
+
+[tasks.demos]
+depends = ["demo-urlparse", "demo-mbox-diff"]

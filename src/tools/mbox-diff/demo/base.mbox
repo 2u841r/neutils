@@ -1,0 +1,27 @@
+From alice@example.com Mon Jan  6 09:00:00 2025
+Message-ID: <001@example.com>
+From: Alice <alice@example.com>
+To: Bob <bob@example.com>
+Subject: Weekly sync notes
+Date: Mon, 6 Jan 2025 09:00:00 +0000
+
+Hi Bob,
+
+Here are the notes from our weekly sync.
+
+- Review Q1 roadmap
+- Assign sprint tasks
+
+Cheers,
+Alice
+
+From bob@example.com Mon Jan  6 14:30:00 2025
+Message-ID: <002@example.com>
+From: Bob <bob@example.com>
+To: Alice <alice@example.com>
+Subject: Re: Weekly sync notes
+Date: Mon, 6 Jan 2025 14:30:00 +0000
+
+Thanks Alice, looks good. I'll update the board.
+
+Bob

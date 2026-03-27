@@ -1,4 +1,4 @@
-Output demo/urlparse.gif
+Output demo.gif
 Set FontSize 14
 Set Width 900
 Set Height 700
@@ -6,9 +6,9 @@ Set Theme "Catppuccin Mocha"
 Set Padding 12
 
 Hide
-Type "alias urlparse=./zig-out/bin/urlparse"
+Type "alias urlparse=$MISE_PROJECT_ROOT/zig-out/bin/urlparse"
 Enter
-Type "zig build && clear"
+Type "cd $MISE_PROJECT_ROOT && zig build && cd src/tools/urlparse/demo && clear"
 Enter
 Wait
 Show

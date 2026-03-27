@@ -2,7 +2,7 @@
 
 Modern CLI utilities for everyday developer tasks.
 
-![urlparse demo](demo/urlparse.gif)
+![urlparse demo](src/tools/urlparse/demo/demo.gif)
 
 ## Philosophy
 
@@ -33,7 +33,8 @@ Download from [GitHub Releases](https://github.com/deevus/neutils/releases) for 
 
 | Tool | Description |
 |------|-------------|
-| `urlparse` | Parse and display URL components |
+| [`urlparse`](src/tools/urlparse/README.md) | Parse and display URL components |
+| [`mbox-diff`](src/tools/mbox-diff/README.md) | Find new emails between two mbox files |
 
 ## Usage
 
@@ -69,6 +70,18 @@ urlparse --output-format markdown "https://example.com/api?page=2"
 
 # Extract a single field
 urlparse --field host "https://example.com/path"
+```
+
+### mbox-diff
+
+Compare two mbox files and output only the new messages (by Message-ID) from the second file that don't exist in the first.
+
+```bash
+# Write new emails to a file
+mbox-diff base.mbox new.mbox -o diff.mbox
+
+# Example: sync a mailbox incrementally
+mbox-diff yesterday.mbox today.mbox -o new-messages.mbox
 ```
 
 ## Development
