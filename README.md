@@ -8,7 +8,7 @@ Modern CLI utilities for everyday developer tasks.
 
 - Each tool does one thing well
 - Instant startup, minimal memory
-- Consistent interface: `--help`, `--version`, `--json`
+- Consistent interface
 - Plain text by default
 
 ## Installation
@@ -20,7 +20,7 @@ Requires [Zig](https://ziglang.org/) 0.15+.
 ```bash
 git clone https://github.com/deevus/neutils
 cd neutils
-zig build -Doptimize=ReleaseSmall
+zig build --release=small
 ```
 
 Binaries in `zig-out/bin/`.
@@ -62,10 +62,10 @@ urlparse "https://user:pass@example.com:8080/path?q=1&lang=en#top"
 
 ```bash
 # JSON output
-urlparse --json "https://example.com/api?page=2"
+urlparse --output-format json "https://example.com/api?page=2"
 
 # Markdown table output
-urlparse --markdown "https://example.com/api?page=2"
+urlparse --output-format markdown "https://example.com/api?page=2"
 
 # Extract a single field
 urlparse --field host "https://example.com/path"
