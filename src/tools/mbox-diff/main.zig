@@ -4,9 +4,9 @@ pub fn main() !void {
 
 fn writeDelta(base: MboxIndex, new: MboxIndex, src_file: std.fs.File, writer: *Writer) !usize {
     var count: usize = 0;
-    var iter = new.messages.iterator();
+    var iter = new.locations.iterator();
     while (iter.next()) |entry| {
-        if (!base.messages.contains(entry.key_ptr.*)) {
+        if (!base.locations.contains(entry.key_ptr.*)) {
             const loc = entry.value_ptr.*;
             const len = loc.end - loc.start;
 
@@ -35,10 +35,10 @@ fn mboxDelta() !void {
     const new_file = try std.fs.cwd().openFile(cli.config.new_mbox, .{});
     defer new_file.close();
 
-    var base_index: MboxIndex = try .load(allocator, base_file);
+    var base_index: MboxIndex = try .index(allocator, base_file);
     defer base_index.deinit(allocator);
 
-    var new_index: MboxIndex = try .load(allocator, new_file);
+    var new_index: MboxIndex = try .index(allocator, new_file);
     defer new_index.deinit(allocator);
 
     // Re-open new file for seeking to message offsets
@@ -105,7 +105,7 @@ fn writeTmpMbox(tmp: *testing.TmpDir, name: []const u8, content: []const u8) !Fi
 
 fn loadTmpIndex(tmp: *testing.TmpDir, name: []const u8, content: []const u8) !struct { MboxIndex, File } {
     const file = try writeTmpMbox(tmp, name, content);
-    const index: MboxIndex = try .load(testing.allocator, file);
+    const index: MboxIndex = try .index(testing.allocator, file);
     return .{ index, file };
 }
 
@@ -116,8 +116,8 @@ test "load parses single message" {
     defer index.deinit(testing.allocator);
     defer file.close();
 
-    try testing.expectEqual(1, index.messages.count());
-    try testing.expect(index.messages.contains("<msg1@example.com>"));
+    try testing.expectEqual(1, index.locations.count());
+    try testing.expect(index.locations.contains("<msg1@example.com>"));
 }
 
 test "load parses multiple messages" {
@@ -127,15 +127,15 @@ test "load parses multiple messages" {
     defer index.deinit(testing.allocator);
     defer file.close();
 
-    try testing.expectEqual(3, index.messages.count());
-    try testing.expect(index.messages.contains("<msg1@example.com>"));
-    try testing.expect(index.messages.contains("<msg2@example.com>"));
-    try testing.expect(index.messages.contains("<msg3@example.com>"));
+    try testing.expectEqual(3, index.locations.count());
+    try testing.expect(index.locations.contains("<msg1@example.com>"));
+    try testing.expect(index.locations.contains("<msg2@example.com>"));
+    try testing.expect(index.locations.contains("<msg3@example.com>"));
 
     // Verify locations don't overlap
-    const loc1 = index.messages.get("<msg1@example.com>").?;
-    const loc2 = index.messages.get("<msg2@example.com>").?;
-    const loc3 = index.messages.get("<msg3@example.com>").?;
+    const loc1 = index.locations.get("<msg1@example.com>").?;
+    const loc2 = index.locations.get("<msg2@example.com>").?;
+    const loc3 = index.locations.get("<msg3@example.com>").?;
     try testing.expect(loc1.end <= loc2.start);
     try testing.expect(loc2.end <= loc3.start);
 }
@@ -160,8 +160,8 @@ test "load indexes message without Message-ID using hash fallback" {
     defer index.deinit(testing.allocator);
     defer file.close();
 
-    try testing.expectEqual(2, index.messages.count());
-    try testing.expect(index.messages.contains("<has-id@example.com>"));
+    try testing.expectEqual(2, index.locations.count());
+    try testing.expect(index.locations.contains("<has-id@example.com>"));
 }
 
 test "writeDelta writes only new messages" {
