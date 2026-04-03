@@ -57,14 +57,14 @@ pub const MessageIdIterator = struct {
 message_ids: std.ArrayListUnmanaged(u8) = .empty,
 locations: std.StringHashMapUnmanaged(Location) = .empty,
 
-const Self = @This();
+const Index = @This();
 
-pub fn deinit(self: *Self, allocator: Allocator) void {
+pub fn deinit(self: *Index, allocator: Allocator) void {
     self.locations.deinit(allocator);
     self.message_ids.deinit(allocator);
 }
 
-pub fn read(allocator: Allocator, reader: *std.io.Reader) !Self {
+pub fn read(allocator: Allocator, reader: *std.io.Reader) !Index {
     const header = try reader.takeArray(8);
     if (!std.mem.eql(u8, header, &file_header)) return error.InvalidFormat;
 
@@ -102,7 +102,7 @@ pub fn read(allocator: Allocator, reader: *std.io.Reader) !Self {
     };
 }
 
-pub fn write(self: Self, writer: *std.io.Writer) !void {
+pub fn write(self: Index, writer: *std.io.Writer) !void {
     try writer.writeAll(&file_header);
     try writer.writeInt(u64, file_version, .little);
 
@@ -123,7 +123,7 @@ pub fn write(self: Self, writer: *std.io.Writer) !void {
     try writer.flush();
 }
 
-pub fn index(allocator: Allocator, file: File) !Self {
+pub fn index(allocator: Allocator, file: File) !Index {
     var read_buf: [65535]u8 = undefined;
     var stream = file.readerStreaming(&read_buf);
     const reader = &stream.interface;
@@ -226,7 +226,7 @@ pub fn index(allocator: Allocator, file: File) !Self {
         offset += line.len;
     }
 
-    var result: Self = .{};
+    var result: Index = .{};
     result.message_ids = message_ids;
 
     var last_sentinel: usize = 0;
@@ -254,7 +254,7 @@ const zigfsm = @import("zigfsm");
 test "read roundtrips with write" {
     const allocator = std.testing.allocator;
 
-    var idx: Self = .{};
+    var idx: Index = .{};
     defer idx.deinit(allocator);
 
     // Build message_ids blob: two null-terminated IDs
@@ -274,7 +274,7 @@ test "read roundtrips with write" {
     // Read back
     const written = fbs.getWritten();
     var reader = std.io.Reader.fixed(written);
-    var restored = try Self.read(allocator, &reader);
+    var restored = try Index.read(allocator, &reader);
     defer restored.deinit(allocator);
 
     // Verify message IDs blob matches
