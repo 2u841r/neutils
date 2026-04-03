@@ -34,6 +34,7 @@ Download from [GitHub Releases](https://github.com/deevus/neutils/releases) for 
 | Tool | Description |
 |------|-------------|
 | [`urlparse`](src/tools/urlparse/README.md) | Parse and display URL components |
+| [`urlencode`](src/tools/urlencode/README.md) | Percent-encode a string for use in URLs |
 | [`mbox-diff`](src/tools/mbox-diff/README.md) | Find new emails between two mbox files |
 
 ## Usage
@@ -70,6 +71,16 @@ urlparse --output-format markdown "https://example.com/api?page=2"
 
 # Extract a single field
 urlparse --field host "https://example.com/path"
+```
+
+### urlencode
+
+```bash
+urlencode "hello world"
+# hello%20world
+
+urlencode "price=10&currency=€"
+# price%3D10%26currency%3D%E2%82%AC
 ```
 
 ### mbox-diff
