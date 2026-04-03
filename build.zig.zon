@@ -14,6 +14,10 @@
             .url = "https://github.com/sam701/zig-cli/archive/cb44aade25a3c1eddd8b6f990b50c2189442c1e2.tar.gz",
             .hash = "cli-0.10.0-2eKe_5kEAQBeHqKxUHNTGnETzu81rqKWwT1WPt1jXBt0",
         },
+        .zigfsm = .{
+            .url = "git+https://github.com/cryptocode/zigfsm#d4438aa9a28477bcb6f74f11e2875279aa928afd",
+            .hash = "zigfsm-0.2.0-9VW4uQY7AQBrx9lNrVJ3PNRPvAX56jJnLBFOL8-vUN25",
+        },
     },
     .fingerprint = 0x8cf1dad9242eeacb,
     .paths = .{

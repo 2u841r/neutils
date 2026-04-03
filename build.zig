@@ -11,6 +11,7 @@ const Dependency = union(enum) {
     const cli: Dependency = .{ .exact = "cli" };
     const kewpie: Dependency = .{ .exact = "kewpie" };
     const zigdown: Dependency = .{ .exact = "zigdown" };
+    const zigfsm: Dependency = .{ .exact = "zigfsm" };
 };
 
 const default_deps: []const Dependency = &.{.cli};
@@ -22,6 +23,13 @@ const dependency_map: std.StaticStringMap([]const Dependency) = .initComptime(.{
             &[_]Dependency{
                 .kewpie,
                 .zigdown,
+            },
+    },
+    .{
+        "mbox-diff",
+        default_deps ++
+            &[_]Dependency{
+                .zigfsm,
             },
     },
 });
