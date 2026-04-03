@@ -35,7 +35,13 @@ const dependency_map: std.StaticStringMap([]const Dependency) = .initComptime(.{
         "mbox-diff",
         default_deps ++
             &[_]Dependency{
-                .zigfsm,
+                .mbox,
+            },
+    },
+    .{
+        "mbox-index",
+        default_deps ++
+            &[_]Dependency{
                 .mbox,
             },
     },
