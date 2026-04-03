@@ -2,203 +2,6 @@ pub fn main() !void {
     try cli.execute(std.heap.page_allocator, mboxDelta);
 }
 
-const State = enum {
-    start,
-    from,
-    headers,
-    body,
-};
-
-const Event = enum {
-    from_line,
-    header_line,
-    blank_line,
-    body_line,
-    other_line,
-    eof,
-};
-
-const MboxIndex = struct {
-    const boundary = "\nFrom ";
-    const msg_id_header = "Message-ID:";
-
-    const Location = struct {
-        start: u64,
-        end: u64,
-    };
-
-    message_ids: std.ArrayListUnmanaged(u8) = .empty,
-    messages: std.StringHashMapUnmanaged(Location) = .empty,
-
-    pub fn deinit(self: *MboxIndex, allocator: Allocator) void {
-        self.messages.deinit(allocator);
-        self.message_ids.deinit(allocator);
-    }
-
-    fn fillMore(reader: *Reader) !bool {
-        reader.fillMore() catch |err| switch (err) {
-            error.EndOfStream => return false,
-            else => return err,
-        };
-        return true;
-    }
-
-    /// Extract Message-ID value from a header block.
-    pub fn extractMessageId(allocator: Allocator, reader: *Reader) !?[]const u8 {
-        while (true) {
-            const buf = reader.buffered();
-            if (buf.len == 0) {
-                if (!try fillMore(reader)) return null;
-                continue;
-            }
-
-            // Check for end of headers (blank line)
-            if (std.mem.indexOf(u8, buf, "\n\n")) |blank_pos| {
-                const headers = buf[0..blank_pos];
-                return findMessageIdInSlice(allocator, headers);
-            }
-
-            // Search what we have so far
-            if (findMessageIdInSlice(allocator, buf)) |msg_id| {
-                return msg_id;
-            }
-
-            // Haven't found end of headers yet — retain tail for partial match, fill more
-            reader.toss(buf.len -| (msg_id_header.len + 256));
-            if (!try fillMore(reader)) return null;
-        }
-    }
-
-    pub fn findMessageIdInSlice(allocator: Allocator, slice: []const u8) ?[]const u8 {
-        const header_start = std.mem.indexOf(u8, slice, msg_id_header) orelse return null;
-        const value_start = header_start + msg_id_header.len;
-        const rest = slice[value_start..];
-
-        // Find end of line
-        const line_end = std.mem.indexOfScalar(u8, rest, '\n') orelse return null;
-
-        // Trim whitespace around the value
-        const raw_value = std.mem.trim(u8, rest[0..line_end], " \t\r");
-        if (raw_value.len == 0) return null;
-
-        return allocator.dupe(u8, raw_value) catch null;
-    }
-
-    fn filePos(file: File, reader: *Reader) u64 {
-        return (file.getPos() catch 0) - reader.bufferedLen();
-    }
-
-    pub fn load(allocator: Allocator, file: File) !MboxIndex {
-        var read_buf: [65535]u8 = undefined;
-        var stream = file.readerStreaming(&read_buf);
-        const reader = &stream.interface;
-
-        var fsm = zigfsm.StateMachine(State, Event, .start).init();
-
-        try fsm.addEventAndTransition(.from_line, .start, .from);
-
-        try fsm.addEventAndTransition(.other_line, .from, .headers);
-
-        try fsm.addEventAndTransition(.other_line, .headers, .headers);
-        try fsm.addEventAndTransition(.blank_line, .headers, .body);
-        try fsm.addEventAndTransition(.from_line, .headers, .from);
-
-        try fsm.addEventAndTransition(.other_line, .body, .body);
-        try fsm.addEventAndTransition(.blank_line, .body, .body);
-        try fsm.addEventAndTransition(.from_line, .body, .from);
-
-        var count: usize = 0;
-        var start: usize = 0;
-        var offset: usize = 0;
-
-        var locations: std.ArrayListUnmanaged(Location) = .empty;
-        var message_ids: std.ArrayListUnmanaged(u8) = .empty;
-
-        var current_hash: std.crypto.hash.sha2.Sha256 = .init(.{});
-        var current_message_id: ?[]const u8 = null;
-        var done = false;
-
-        while (!done) {
-            const line = reader.takeDelimiterInclusive('\n') catch |err| switch (err) {
-                error.EndOfStream => blk: {
-                    done = true;
-                    break :blk reader.buffered()[reader.seek..reader.end];
-                },
-                else => return err,
-            };
-
-            if (std.mem.startsWith(u8, line, boundary[1..])) {
-                _ = try fsm.do(.from_line);
-            } else if (std.mem.trim(u8, line, &std.ascii.whitespace).len == 0) {
-                _ = try fsm.do(.blank_line);
-            } else {
-                _ = try fsm.do(.other_line);
-            }
-
-            if (done or fsm.currentState() == .from) {
-                if (count > 0) {
-                    try locations.append(allocator, .{
-                        .start = start,
-                        .end = offset,
-                    });
-
-                    if (done and std.mem.trim(u8, line, &std.ascii.whitespace).len > 0) {
-                        current_hash.update(line);
-                    }
-
-                    const message_id: []const u8 = if (current_message_id) |id| id else blk: {
-                        const hash_bytes = current_hash.finalResult();
-                        break :blk &std.fmt.bytesToHex(&hash_bytes, .lower);
-                    };
-
-                    try message_ids.ensureUnusedCapacity(allocator, message_id.len + 1);
-                    message_ids.appendSliceAssumeCapacity(message_id);
-                    message_ids.appendAssumeCapacity(0);
-                }
-
-                start = offset;
-                count += 1;
-                current_hash = .init(.{});
-                current_message_id = null;
-            } else if (std.mem.trim(u8, line, &std.ascii.whitespace).len > 0) {
-                current_hash.update(line);
-
-                if (std.ascii.startsWithIgnoreCase(line, msg_id_header)) {
-                    const raw = std.mem.trim(u8, line[msg_id_header.len..], &std.ascii.whitespace);
-                    if (raw.len > 0) {
-                        current_message_id = try allocator.dupe(u8, raw);
-                    }
-                }
-            }
-
-            offset += line.len;
-        }
-
-        var result: MboxIndex = .{};
-        result.message_ids = message_ids;
-
-        var this_sentinel: usize = 0;
-        var last_sentinel: usize = 0;
-
-        for (locations.items) |location| {
-            // find the next sentinel
-            this_sentinel = std.mem.indexOfScalarPos(u8, message_ids.items, last_sentinel, 0).?;
-
-            // extract the message id
-            const message_id = message_ids.items[last_sentinel..this_sentinel];
-
-            // put the location into the map
-            if (!result.messages.contains(message_id)) {
-                try result.messages.putNoClobber(allocator, message_id, location);
-            }
-
-            last_sentinel = this_sentinel + 1;
-        }
-
-        return result;
-    }
-};
-
 fn writeDelta(base: MboxIndex, new: MboxIndex, src_file: std.fs.File, writer: *Writer) !usize {
     var count: usize = 0;
     var iter = new.messages.iterator();
@@ -257,13 +60,11 @@ fn mboxDelta() !void {
 }
 
 const std = @import("std");
-const Allocator = std.mem.Allocator;
 const File = std.fs.File;
-const Reader = std.Io.Reader;
 const Writer = std.Io.Writer;
 
 const cli = @import("cli.zig");
-const zigfsm = @import("zigfsm");
+const MboxIndex = @import("mbox").Index;
 
 const testing = std.testing;
 
@@ -304,8 +105,7 @@ fn writeTmpMbox(tmp: *testing.TmpDir, name: []const u8, content: []const u8) !Fi
 
 fn loadTmpIndex(tmp: *testing.TmpDir, name: []const u8, content: []const u8) !struct { MboxIndex, File } {
     const file = try writeTmpMbox(tmp, name, content);
-    var index: MboxIndex = .{};
-    try index.load(testing.allocator, file);
+    const index: MboxIndex = try .load(testing.allocator, file);
     return .{ index, file };
 }
 
@@ -340,7 +140,7 @@ test "load parses multiple messages" {
     try testing.expect(loc2.end <= loc3.start);
 }
 
-test "load skips message without Message-ID" {
+test "load indexes message without Message-ID using hash fallback" {
     const mbox =
         \\From sender@example.com Mon Jan 1 00:00:00 2024
         \\Subject: No ID
@@ -360,7 +160,7 @@ test "load skips message without Message-ID" {
     defer index.deinit(testing.allocator);
     defer file.close();
 
-    try testing.expectEqual(1, index.messages.count());
+    try testing.expectEqual(2, index.messages.count());
     try testing.expect(index.messages.contains("<has-id@example.com>"));
 }
 

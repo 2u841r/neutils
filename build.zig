@@ -7,11 +7,17 @@ const Dependency = union(enum) {
         name: []const u8,
         module: []const u8,
     },
+    lib: struct {
+        name: []const u8,
+        path: []const u8,
+        deps: []const Dependency = &.{},
+    },
 
     const cli: Dependency = .{ .exact = "cli" };
     const kewpie: Dependency = .{ .exact = "kewpie" };
     const zigdown: Dependency = .{ .exact = "zigdown" };
     const zigfsm: Dependency = .{ .exact = "zigfsm" };
+    const mbox: Dependency = .{ .lib = .{ .name = "mbox", .path = "src/lib/mbox/root.zig", .deps = &.{.zigfsm} } };
 };
 
 const default_deps: []const Dependency = &.{.cli};
@@ -30,6 +36,7 @@ const dependency_map: std.StaticStringMap([]const Dependency) = .initComptime(.{
         default_deps ++
             &[_]Dependency{
                 .zigfsm,
+                .mbox,
             },
     },
 });
@@ -68,16 +75,7 @@ pub fn build(b: *std.Build) !void {
 
         mod.addOptions("build_options", build_options);
 
-        for (dependency_map.get(tool_name) orelse default_deps) |dep| {
-            switch (dep) {
-                .exact => |name| {
-                    mod.addImport(name, b.dependency(name, .{ .target = target, .optimize = optimize }).module(name));
-                },
-                .module => |m| {
-                    mod.addImport(m.name, b.dependency(m.name, .{ .target = target, .optimize = optimize }).module(m.module));
-                },
-            }
-        }
+        resolveDeps(b, mod, target, optimize, dependency_map.get(tool_name) orelse default_deps);
 
         const exe = b.addExecutable(.{
             .name = tool_name,
@@ -107,6 +105,34 @@ pub fn build(b: *std.Build) !void {
         test_step.dependOn(&test_run.step);
 
         test_all_step.dependOn(test_step);
+    }
+}
+
+fn resolveDeps(
+    b: *std.Build,
+    mod: *std.Build.Module,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    deps: []const Dependency,
+) void {
+    for (deps) |dep| {
+        switch (dep) {
+            .exact => |name| {
+                mod.addImport(name, b.dependency(name, .{ .target = target, .optimize = optimize }).module(name));
+            },
+            .module => |m| {
+                mod.addImport(m.name, b.dependency(m.name, .{ .target = target, .optimize = optimize }).module(m.module));
+            },
+            .lib => |l| {
+                const lib_mod = b.createModule(.{
+                    .root_source_file = b.path(l.path),
+                    .target = target,
+                    .optimize = optimize,
+                });
+                resolveDeps(b, lib_mod, target, optimize, l.deps);
+                mod.addImport(l.name, lib_mod);
+            },
+        }
     }
 }
 
