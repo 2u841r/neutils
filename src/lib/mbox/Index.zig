@@ -153,14 +153,11 @@ pub fn index(allocator: Allocator, file: File) !Index {
     var message_ids: std.ArrayListUnmanaged(u8) = .empty;
     var message_count: u32 = 0;
 
-    var seen_ids: std.StringHashMapUnmanaged(void) = .empty;
-    defer {
-        var iter = seen_ids.keyIterator();
-        while (iter.next()) |id| {
-            allocator.free(id.*);
-        }
-        seen_ids.deinit(allocator);
-    }
+    var seen_ids: std.HashMapUnmanaged(u32, void, std.hash_map.StringIndexContext, std.hash_map.default_max_load_percentage) = .empty;
+    defer seen_ids.deinit(allocator);
+
+    const ctx: std.hash_map.StringIndexContext = .{ .bytes = &message_ids };
+    const adapter: std.hash_map.StringIndexAdapter = .{ .bytes = &message_ids };
 
     var current_hash: std.crypto.hash.sha2.Sha256 = .init(.{});
     var current_message_id: ?[]const u8 = null;
@@ -190,7 +187,10 @@ pub fn index(allocator: Allocator, file: File) !Index {
                     break :blk &std.fmt.bytesToHex(&hash_bytes, .lower);
                 };
 
-                if (!seen_ids.contains(message_id)) {
+                const gop = try seen_ids.getOrPutContextAdapted(allocator, message_id, adapter, ctx);
+                if (!gop.found_existing) {
+                    const message_id_offset: u32 = @intCast(message_ids.items.len);
+
                     try locations.append(allocator, .{
                         .start = start,
                         .end = offset,
@@ -204,9 +204,9 @@ pub fn index(allocator: Allocator, file: File) !Index {
                     message_ids.appendSliceAssumeCapacity(message_id);
                     message_ids.appendAssumeCapacity(0);
 
-                    message_count += 1;
+                    gop.key_ptr.* = message_id_offset;
 
-                    try seen_ids.putNoClobber(allocator, try allocator.dupe(u8, message_id), {});
+                    message_count += 1;
                 }
 
                 if (current_message_id) |id| allocator.free(id);
