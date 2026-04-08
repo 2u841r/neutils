@@ -1,0 +1,6 @@
+size: []const u8,
+output: []const u8,
+seed: u64,
+body_size: u32,
+with_id_ratio: f32,
+force: bool,

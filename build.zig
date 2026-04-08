@@ -14,6 +14,7 @@ const Dependency = union(enum) {
     },
 
     const cli: Dependency = .{ .exact = "cli" };
+    const humanize: Dependency = .{ .exact = "humanize" };
     const kewpie: Dependency = .{ .exact = "kewpie" };
     const zigdown: Dependency = .{ .exact = "zigdown" };
     const zigfsm: Dependency = .{ .exact = "zigfsm" };
@@ -45,6 +46,14 @@ const dependency_map: std.StaticStringMap([]const Dependency) = .initComptime(.{
         default_deps ++
             &[_]Dependency{
                 .mbox,
+            },
+    },
+    .{
+        "mbox-gen",
+        default_deps ++
+            &[_]Dependency{
+                .mbox,
+                .humanize,
             },
     },
 });

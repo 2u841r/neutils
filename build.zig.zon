@@ -18,6 +18,10 @@
             .url = "git+https://github.com/cryptocode/zigfsm#d4438aa9a28477bcb6f74f11e2875279aa928afd",
             .hash = "zigfsm-0.2.0-9VW4uQY7AQBrx9lNrVJ3PNRPvAX56jJnLBFOL8-vUN25",
         },
+        .humanize = .{
+            .url = "git+https://github.com/burdzwastaken/zig-humanize#bf713d8165f5fce4db01af5e680d21fc31b074b5",
+            .hash = "humanize-0.0.5-xH2j9oHcAABixEpQnxZAi_btBp70H8-8OwkuUVM_XJ4e",
+        },
     },
     .fingerprint = 0x8cf1dad9242eeacb,
     .paths = .{
