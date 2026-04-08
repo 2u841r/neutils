@@ -77,6 +77,7 @@ pub fn read(allocator: Allocator, reader: *std.io.Reader) !Index {
 
     var message_ids: std.ArrayListUnmanaged(u8) = try .initCapacity(allocator, @intCast(ids_blob_len));
     errdefer message_ids.deinit(allocator);
+    message_ids.items.len = @intCast(ids_blob_len);
     try reader.readSliceAll(message_ids.items);
 
     const locs_chunk_type = try reader.takeInt(u64, .little);
@@ -267,12 +268,11 @@ test "read roundtrips with write" {
 
     // Write to buffer
     var buf: [4096]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&buf);
-    var writer = fbs.writer().any();
+    var writer = std.io.Writer.fixed(&buf);
     try idx.write(&writer);
 
     // Read back
-    const written = fbs.getWritten();
+    const written = writer.buffered();
     var reader = std.io.Reader.fixed(written);
     var restored = try Index.read(allocator, &reader);
     defer restored.deinit(allocator);
