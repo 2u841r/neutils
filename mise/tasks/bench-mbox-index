@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+#MISE description="Benchmark mbox-index against synthetic or real mbox files"
+#USAGE flag "-f --file <file>" help="Mbox file to benchmark (may be combined with --synthetic)"
+#USAGE flag "-s --synthetic" help="Generate and bench synthetic fixtures"
+#USAGE flag "-r --runs <n>" help="Hyperfine runs (default: 5)"
+#USAGE flag "-w --warmup <n>" help="Hyperfine warmup runs (default: 2)"
+#USAGE flag "-d --fixtures-dir <dir>" help="Directory for synthetic fixtures and bench output (default: /tmp/mbox-bench)"
+#USAGE flag "--sizes <sizes>" help="Comma-separated synthetic sizes (default: 100M,1G)"
+#USAGE flag "--cold" help="Cold-cache mode via 'sudo purge' before each run (macOS; passwordless sudo recommended)"
+#USAGE flag "--no-build" help="Skip the ReleaseFast build step"
+set -euo pipefail
+
+runs="${usage_runs:-5}"
+warmup="${usage_warmup:-2}"
+fixtures_dir="${usage_fixtures_dir:-/tmp/mbox-bench}"
+sizes="${usage_sizes:-100M,1G}"
+
+mbox_index="$MISE_PROJECT_ROOT/zig-out/bin/mbox-index"
+mbox_gen="$MISE_PROJECT_ROOT/zig-out/bin/mbox-gen"
+
+# Build (ReleaseFast) unless suppressed
+if [[ "${usage_no_build:-}" != "true" ]]; then
+    echo "==> Building tools in ReleaseFast"
+    (cd "$MISE_PROJECT_ROOT" && zig build -Doptimize=ReleaseFast)
+fi
+
+for bin in "$mbox_index" "$mbox_gen"; do
+    if [[ ! -x "$bin" ]]; then
+        echo "Error: $bin not found — build first (or drop --no-build)" >&2
+        exit 1
+    fi
+done
+
+# Default to --synthetic when nothing was specified
+if [[ -z "${usage_file:-}" && "${usage_synthetic:-}" != "true" ]]; then
+    usage_synthetic=true
+fi
+
+declare -a targets=()
+declare -a labels=()
+
+mkdir -p "$fixtures_dir"
+
+if [[ "${usage_synthetic:-}" == "true" ]]; then
+    IFS=',' read -ra size_list <<<"$sizes"
+    for size in "${size_list[@]}"; do
+        all_ids="$fixtures_dir/fixture-${size}.mbox"
+        no_ids="$fixtures_dir/fixture-${size}-noid.mbox"
+        if [[ ! -f "$all_ids" ]]; then
+            echo "==> Generating $all_ids"
+            "$mbox_gen" --size "$size" --seed 1 --force "$all_ids"
+        fi
+        if [[ ! -f "$no_ids" ]]; then
+            echo "==> Generating $no_ids"
+            "$mbox_gen" --size "$size" --seed 1 --with-id-ratio 0.0 --force "$no_ids"
+        fi
+        targets+=("$all_ids" "$no_ids")
+        labels+=("${size} all-ids" "${size} no-ids")
+    done
+fi
+
+if [[ -n "${usage_file:-}" ]]; then
+    if [[ ! -f "$usage_file" ]]; then
+        echo "Error: $usage_file not found" >&2
+        exit 1
+    fi
+    targets+=("$usage_file")
+    labels+=("$(basename "$usage_file")")
+fi
+
+out_idx="$fixtures_dir/bench.idx"
+json_out="$fixtures_dir/bench.json"
+
+hf_args=(--warmup "$warmup" --runs "$runs" --export-json "$json_out")
+if [[ "${usage_cold:-}" == "true" ]]; then
+    echo "==> Cold-cache mode: hyperfine will run 'sudo purge' before each run"
+    hf_args+=(--prepare "sudo purge")
+fi
+
+for i in "${!targets[@]}"; do
+    hf_args+=(-n "${labels[$i]}" "\"$mbox_index\" -o \"$out_idx\" \"${targets[$i]}\"")
+done
+
+hyperfine "${hf_args[@]}"
+
+# Throughput summary from hyperfine JSON (order is preserved)
+mapfile -t means < <(grep -o '"mean": [0-9.]*' "$json_out" | awk '{print $2}')
+
+if [[ ${#means[@]} -ne ${#targets[@]} ]]; then
+    echo "Warning: could not correlate hyperfine results for throughput summary" >&2
+    exit 0
+fi
+
+stat_size() {
+    if stat -f%z "$1" >/dev/null 2>&1; then
+        stat -f%z "$1"
+    else
+        stat -c%s "$1"
+    fi
+}
+
+echo ""
+echo "=== Throughput ==="
+printf "%-30s  %10s  %12s  %12s\n" "Workload" "Mean" "Size" "Throughput"
+printf -- '-%.0s' {1..72}
+echo ""
+for i in "${!targets[@]}"; do
+    mean="${means[$i]}"
+    size=$(stat_size "${targets[$i]}")
+    gbps=$(awk "BEGIN { printf \"%.2f\", $size / ($mean * 1e9) }")
+    human_size=$(awk -v s="$size" 'BEGIN {
+        if (s >= 1e9) printf "%.2f GB", s/1e9;
+        else if (s >= 1e6) printf "%.2f MB", s/1e6;
+        else printf "%d B", s
+    }')
+    printf "%-30s  %8.3fs  %12s  %8s GB/s\n" "${labels[$i]}" "$mean" "$human_size" "$gbps"
+done
