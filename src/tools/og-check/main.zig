@@ -81,6 +81,7 @@ fn ogCheck() !void {
             error.MissingTitle, error.MissingType, error.MissingImage, error.MissingUrl => {
                 try stderr_writer.print("error: OpenGraph missing required field — {}.\n", .{err});
                 try stderr_writer.flush();
+                std.process.exit(1);
             },
             else => return err,
         },
@@ -88,6 +89,7 @@ fn ogCheck() !void {
             error.MissingCard, error.MissingTitle, error.MissingImage => {
                 try stderr_writer.print("error: Twitter Card missing required field — {}.\n", .{err});
                 try stderr_writer.flush();
+                std.process.exit(1);
             },
             else => return err,
         },
