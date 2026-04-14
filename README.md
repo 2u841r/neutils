@@ -37,6 +37,7 @@ Download from [GitHub Releases](https://github.com/deevus/neutils/releases) for 
 | [`mbox-diff`](src/tools/mbox-diff/README.md) | Find new emails between two mbox files |
 | [`mbox-index`](src/tools/mbox-index/README.md) | Build an index of an mbox file by message identifier |
 | [`mbox-gen`](src/tools/mbox-gen/README.md) | Generate synthetic mbox files for testing |
+| [`og-check`](src/tools/og-check/README.md) | Fetch a URL and render its OpenGraph / Twitter Card metadata |
 
 ## Usage
 
@@ -117,6 +118,25 @@ mbox-gen --size 1GiB --seed 42 --body-size 4096 fixture.mbox
 
 # Simulate missing Message-IDs on 20% of messages
 mbox-gen --size 10M --with-id-ratio 0.8 partial.mbox
+```
+
+### og-check
+
+Fetch a URL and render its OpenGraph / Twitter Card metadata. Useful for
+checking how a page will look when shared on social media.
+
+```bash
+# Rendered OpenGraph preview (default)
+og-check https://github.com/deevus/neutils
+
+# Twitter Card preview (falls back to og:* when twitter:* are absent)
+og-check -o twitter https://github.com/deevus/neutils
+
+# All meta tags as a table, grouped by namespace
+og-check -o table https://github.com/deevus/neutils
+
+# JSON for piping into other tools
+og-check -o json https://github.com/deevus/neutils
 ```
 
 ## Development
